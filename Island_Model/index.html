@@ -1,0 +1,414 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	
+	<link type="text/css" rel="stylesheet" href="main.css">
+
+    <body>
+        <div id="container"></div>
+
+        <!--кнопка старт описана в main.css-->
+        <div id="overlay">
+            <button id="startButton">Play</button>
+            <div class="text">"This model uses materials from Threejs.org and sketchfab.com"</div>
+            <div class="text">"All materials are used exclusively for educational purposes"</div>
+            <a class ="git" href="https://github.com/Morphyren/Threejs_Model.git" target="_blank">Git Hub</a>
+        </div>
+
+
+        <script type="importmap">
+            {
+            "imports": {
+            "three": "./lib/three.module.js",
+            "three/addons/": "./jsm/"
+            }
+            }
+        </script>
+
+
+        <script type="module">
+
+            import * as THREE from 'three';
+            import { OrbitControls } from './lib/OrbitControls.js';
+            import { Water } from './lib/Water.js';
+            import { Sky } from './lib/Sky.js';
+            import { FBXLoader } from './lib/FBXLoader.js';
+            import { GUI } from './lib/lil-gui.module.min.js';
+
+
+            let container;
+            let camera, scene, renderer;
+            let controls, water, sun;
+            let splineCamera;
+
+            const normal = new THREE.Vector3(0, 1, 0); // для горизонтального движения камеры
+            const position = new THREE.Vector3();
+            const lookAt = new THREE.Vector3();
+            const clock = new THREE.Clock();
+            let loopt = { 'duration': 20000 };
+
+            // указать адреса
+            ///////////////////////////////////////////////////////////////////////////////
+            let waterTexuterPath = './textures/waternormals.jpg';
+
+            let MainfbxModelPath = './models/realModel.fbx';
+
+            let musicPath = './sounds/rer.mp3';
+            ///////////////////////////////////////////////////////////////////////////////
+
+            //сплайн из векторов
+            const pipeSpline = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-169.412537, 65.770630, -25.273445),
+                new THREE.Vector3(-168.960754, 65.634399, -20.840132),
+                new THREE.Vector3(-167.683624, 65.243149, -17.087231),
+                new THREE.Vector3(-165.693527, 64.622253, -13.941375),
+                new THREE.Vector3(-163.095825, 63.795853, -11.333289),
+                new THREE.Vector3(-159.989182, 62.786957, -9.198022),
+                new THREE.Vector3(-156.465332, 61.617386, -7.474766),
+                new THREE.Vector3(-152.609131, 60.307785, -6.106953),
+                new THREE.Vector3(-148.498734, 58.877655, -5.042262),
+                new THREE.Vector3(-144.205292, 57.345295, -4.232551),
+                new THREE.Vector3(-139.793213, 55.727871, -3.633925),
+                new THREE.Vector3(-135.319962, 54.041309, -3.206687),
+                new THREE.Vector3(-130.836319, 52.300457, -2.915375),
+                new THREE.Vector3(-126.386055, 50.518921, -2.728733),
+                new THREE.Vector3(-122.006119, 48.709152, -2.619728),
+                new THREE.Vector3(-117.726730, 46.882469, -2.565548),
+                new THREE.Vector3(-113.571121, 45.048954, -2.547596),
+                new THREE.Vector3(-109.555809, 43.217587, -2.551496),
+                new THREE.Vector3(-105.690323, 41.396111, -2.567087),
+                new THREE.Vector3(-101.977486, 39.591171, -2.588429),
+                new THREE.Vector3(-98.413467, 37.808205, -2.613623),
+                new THREE.Vector3(-94.991234, 36.051926, -2.642845),
+                new THREE.Vector3(-91.703796, 34.326660, -2.676387),
+                new THREE.Vector3(-88.544449, 32.636356, -2.714479),
+                new THREE.Vector3(-85.506874, 30.984632, -2.757287),
+                new THREE.Vector3(-82.585075, 29.374737, -2.804913),
+                new THREE.Vector3(-79.773399, 27.809570, -2.857398),
+                new THREE.Vector3(-77.066513, 26.291679, -2.914718),
+                new THREE.Vector3(-74.459435, 24.823254, -2.976786),
+                new THREE.Vector3(-71.947487, 23.406120, -3.043453),
+                new THREE.Vector3(-69.526375, 22.041759, -3.114505),
+                new THREE.Vector3(-67.192116, 20.731300, -3.189667),
+                new THREE.Vector3(-64.941063, 19.475513, -3.268600),
+                new THREE.Vector3(-62.769905, 18.274811, -3.350900),
+                new THREE.Vector3(-60.675674, 17.129257, -3.436103),
+                new THREE.Vector3(-58.655743, 16.038559, -3.523679),
+                new THREE.Vector3(-56.707794, 15.002060, -3.613037),
+                new THREE.Vector3(-54.829876, 14.018760, -3.703521),
+                new THREE.Vector3(-53.020359, 13.087303, -3.794415),
+                new THREE.Vector3(-51.277935, 12.205994, -3.884940),
+                new THREE.Vector3(-49.601402, 11.372971, -3.974324),
+                new THREE.Vector3(-47.989456, 10.586401, -4.061853),
+                new THREE.Vector3(-46.440651, 9.844471, -4.146885),
+                new THREE.Vector3(-44.953430, 9.145411, -4.228841),
+                new THREE.Vector3(-43.526119, 8.487485, -4.307209),
+                new THREE.Vector3(-42.156906, 7.868986, -4.381548),
+                new THREE.Vector3(-40.843861, 7.288245, -4.451482),
+                new THREE.Vector3(-39.584923, 6.743624, -4.516700),
+                new THREE.Vector3(-38.377914, 6.233522, -4.576963),
+                new THREE.Vector3(-37.220535, 5.756366, -4.632096),
+                new THREE.Vector3(-36.110344, 5.310622, -4.681992),
+                new THREE.Vector3(-35.044781, 4.894789, -4.726611),
+                new THREE.Vector3(-34.021191, 4.507398, -4.765980),
+                new THREE.Vector3(-33.036751, 4.147015, -4.800195),
+                new THREE.Vector3(-32.088531, 3.812241, -4.829418),
+                new THREE.Vector3(-31.173485, 3.501706, -4.853877),
+                new THREE.Vector3(-30.288441, 3.214079, -4.873869),
+                new THREE.Vector3(-29.430080, 2.948061, -4.889759),
+                new THREE.Vector3(-28.595005, 2.702388, -4.901968),
+                new THREE.Vector3(-27.779869, 2.475871, -4.910905),
+                new THREE.Vector3(-26.981571, 2.267421, -4.916879),
+                new THREE.Vector3(-26.197269, 2.076059, -4.920096),
+                new THREE.Vector3(-25.424389, 1.900913, -4.920663),
+                new THREE.Vector3(-24.660618, 1.741219, -4.918580),
+                new THREE.Vector3(-23.903889, 1.596319, -4.913746),
+                new THREE.Vector3(-23.152412, 1.465665, -4.905956),
+                new THREE.Vector3(-22.404640, 1.348816, -4.894903),
+                new THREE.Vector3(-21.659309, 1.245437, -4.880178),
+                new THREE.Vector3(-20.915382, 1.155301, -4.861268),
+                new THREE.Vector3(-20.172123, 1.078291, -4.837556),
+                new THREE.Vector3(-19.429020, 1.014394, -4.808324),
+                new THREE.Vector3(-18.685852, 0.963708, -4.772750),
+                new THREE.Vector3(-17.942627, 0.926436, -4.729909),
+                new THREE.Vector3(-17.199635, 0.902890, -4.678775),
+                new THREE.Vector3(-16.457432, 0.893489, -4.618217),
+                new THREE.Vector3(-15.716797, 0.898760, -4.547001),
+                new THREE.Vector3(-14.978832, 0.919338, -4.463791),
+                new THREE.Vector3(-14.244778, 0.955976, -4.367167),
+                new THREE.Vector3(-13.515697, 1.009687, -4.255829),
+                new THREE.Vector3(-12.791920, 1.081880, -4.128796),
+                new THREE.Vector3(-12.073009, 1.174370, -3.985432),
+                new THREE.Vector3(-11.357800, 1.289381, -3.825441),
+                new THREE.Vector3(-10.644356, 1.429545, -3.648868),
+                new THREE.Vector3(-9.929989, 1.597902, -3.456100),
+                new THREE.Vector3(-9.211296, 1.797901, -3.247864),
+                new THREE.Vector3(-8.484070, 2.033399, -3.025231),
+                new THREE.Vector3(-7.743385, 2.308659, -2.789610),
+                new THREE.Vector3(-6.983570, 2.628354, -2.542753),
+                new THREE.Vector3(-6.198158, 2.997565, -2.286753),
+                new THREE.Vector3(-5.379978, 3.421781, -2.024046),
+                new THREE.Vector3(-4.521099, 3.906897, -1.757406),
+                new THREE.Vector3(-3.612793, 4.459220, -1.489950),
+                new THREE.Vector3(-2.645653, 5.085463, -1.225136),
+                new THREE.Vector3(-1.609451, 5.792745, -0.966765),
+                new THREE.Vector3(-0.493286, 6.588596, -0.718977),
+                new THREE.Vector3(0.714600, 7.480954, -0.486255),
+
+
+            ]);
+            //массив добавления сплайнов
+            const splines = {
+                PipeSpline: pipeSpline,
+            };
+
+            let parent, tubeGeometry, mesh;
+
+            //параметры сплайна
+            const params = {
+                spline: 'PipeSpline',
+                scale: 9,
+                extrusionSegments: 96,  // количество сегментов - лучше соответствие количеству точек сплайна
+                radiusSegments: 1,
+                closed: false, // закольцовка сплайна
+                animationView: false, // переключитсья на другую камеры
+                mesh: false //видимость сплайна
+            };
+
+
+            //добавление пути
+            function addTube() {
+                if (mesh !== undefined) {
+                    parent.remove(mesh);
+                    mesh.geometry.dispose();
+                }
+                const extrudePath = splines[params.spline];   // добавляем путь из массива сплайнов
+                tubeGeometry = new THREE.TubeGeometry(extrudePath, params.extrusionSegments, 2, params.radiusSegments, params.closed);
+                // создаем объект с параметрами из params
+                addGeometry(tubeGeometry);
+                // mesh.scale.set(params.scale, params.scale, params.scale); // надо подстроить под модель
+                mesh.scale.multiplyScalar(params.scale);
+            }
+
+
+            //Видимость сплайна и его цвет
+            function addGeometry(geometry) {
+                mesh = new THREE.Mesh(geometry);
+                const wireframeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.3, wireframe: true, transparent: true });
+                const wireframe = new THREE.Mesh(geometry, wireframeMaterial);
+                mesh.add(wireframe); // добавляем к линии цвет
+                mesh.visible = false; //изначально не виден
+                parent.add(mesh);
+            }
+
+            //кнопка старт (вызывает init, в конце init добавлен animate())
+            const startButton = document.getElementById('startButton');
+            startButton.addEventListener('click', init);
+
+
+            function init() {
+
+                //удаление старт-кнопки
+                const overlay = document.getElementById('overlay');
+                overlay.remove();
+
+                // контейнер, на котором будет размещена модель
+                container = document.getElementById('container');
+
+                //создание сцены
+                scene = new THREE.Scene();
+                parent = new THREE.Object3D();
+                scene.add(parent);
+
+                // рендер
+                renderer = new THREE.WebGLRenderer();
+                renderer.setPixelRatio(window.devicePixelRatio); //рендеринг с разрешением устройства
+                renderer.setSize(window.innerWidth, window.innerHeight); // входные размеры окна
+                renderer.toneMapping = THREE.ACESFilmicToneMapping; // тона
+                container.appendChild(renderer.domElement);
+
+
+                //камера основная(вертикальный угол просмотра, соотношение сторон, ближняя плоскость, дальняя)
+                camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
+                camera.position.set(-200, 100, 0); // позиция основной камеры
+
+                //камера для spline
+                splineCamera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 10, 20000); //камера для сплайна
+                parent.add(splineCamera);
+                addTube(); // добавление сплайна
+
+                //аудиозапись
+                const listener = new THREE.AudioListener();
+                camera.add(listener);
+
+
+                // Вода
+                ///////////////////////////////////////////////////////////////////////////////
+                const waterGeometry = new THREE.PlaneGeometry(10000, 10000);//размеры воды
+                water = new Water(
+                    waterGeometry,
+                    {
+                        textureWidth: 512,
+                        textureHeight: 512,
+                        waterNormals: new THREE.TextureLoader().load(waterTexuterPath, function (texture) { //загрузка текстуры воды
+                            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                        }),
+                        sunDirection: new THREE.Vector3(),
+                        sunColor: 0xffffff,
+                        waterColor: 0x001e0f,
+                        distortionScale: 3.7,
+                        fog: scene.fog !== undefined
+                    }
+                );
+                water.rotation.x = - Math.PI / 2; //движение воды
+
+                scene.add(water); // добавление воды
+
+
+                // Небо
+                ///////////////////////////////////////////////////////////////////////////////
+                sun = new THREE.Vector3();
+                const sky = new Sky();
+                sky.scale.setScalar(10000);
+                scene.add(sky);
+
+                const skyUniforms = sky.material.uniforms;
+
+                skyUniforms['turbidity'].value = 7;//размытость солнечного диска
+                skyUniforms['rayleigh'].value = 2;
+                skyUniforms['mieCoefficient'].value = 0.005; //засвеченность
+                skyUniforms['mieDirectionalG'].value = 0.8;// ясность
+
+                const parameters = {
+                    elevation: 2,
+                    azimuth: 210 //азимут 180
+                };
+
+                const pmremGenerator = new THREE.PMREMGenerator(renderer);
+                let renderTarget;
+
+                //свет
+                function updateSun() {
+
+                    const phi = THREE.MathUtils.degToRad(70 - parameters.elevation);
+                    const theta = THREE.MathUtils.degToRad(parameters.azimuth);
+
+                    sun.setFromSphericalCoords(1, phi, theta);
+
+                    sky.material.uniforms['sunPosition'].value.copy(sun);
+                    water.material.uniforms['sunDirection'].value.copy(sun).normalize();
+
+                    if (renderTarget !== undefined) renderTarget.dispose();
+                    renderTarget = pmremGenerator.fromScene(sky);
+                    scene.environment = renderTarget.texture;
+                }
+                updateSun();
+                ///////////////////////////////////////////////////////////////////////////////
+
+
+                const fbx_loader = new FBXLoader();
+                let teapot_mixer;
+
+                // загрузчик  fbx моделей.
+                fbx_loader.load(MainfbxModelPath, function (object) {
+                    //подключие анимации модели
+                    teapot_mixer = new THREE.AnimationMixer(object);
+                    const action = teapot_mixer.clipAction(object.animations[0]);
+                    action.play();
+
+                    //позиция объекта, размеры, поворот
+                    object.position.set(0, 5.5, -10);
+                    object.scale.multiplyScalar(0.07);
+                    object.rotation.set(0, 0, 0, 'XYZ');
+
+                    // подключение теней
+                    object.traverse(function (child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    scene.add(object);// Добавляем объект на сцену.
+                });
+
+                ///////////////////////////////////////////////////////////////////////////////
+
+                // Звуки
+                const sound = new THREE.Audio(listener);
+                const audioLoader = new THREE.AudioLoader();
+
+                //Загрузчик звуков
+                audioLoader.load(musicPath, function (scene) {
+                    sound.setBuffer(scene);
+                    sound.setLoop(true);
+                    sound.setVolume(0.5);
+                    sound.play();
+                });
+
+                ///////////////////////////////////////////////////////////////////////////////
+                //Элемент управления GUI
+                const gui = new GUI({ width: 200 });
+
+                // GUI управление, переключение камеры и видимость сплайна
+                gui.add(params, 'animationView').onChange(function () { });
+                gui.add(params, 'mesh').onChange(function () {
+                    mesh.visible = params.mesh;
+                });
+                gui.add(loopt, 'duration', 3000, 20000, 500);
+
+
+                // Элемент OrbitControls
+                //////////////////////////////////////////////////////////////
+                controls = new OrbitControls(camera, renderer.domElement);
+                controls.maxPolarAngle = Math.PI * 0.495; // ограничивает вращение есть еще minPolar
+                controls.minDistance = 20;//отдаление
+                controls.maxDistance = 500; //отдаление
+                //////////////////////////////////////////////////////////////
+
+
+                animate();
+
+                function animate() {
+                    requestAnimationFrame(animate);
+                    if (teapot_mixer) {
+                        let dt = clock.getDelta();
+                        teapot_mixer.update(dt);
+                    }
+                    controls.update();
+                    render();
+                }
+
+            }
+
+
+            function render() {
+
+                water.material.uniforms['time'].value += 1.0 / 60.0; //движение воды
+
+                //время движения камеры
+                const time = Date.now();
+                var t = (time % loopt.duration) / loopt.duration;
+
+                // копируем вектор пути в position
+                tubeGeometry.parameters.path.getPointAt(t, position);
+                //увеличение пути
+                position.multiplyScalar(params.scale);
+
+                const offset = 10;
+
+                position.add(normal.clone().multiplyScalar(offset));
+                splineCamera.position.copy(position);
+
+                // вдоль сплайна
+                splineCamera.matrix.lookAt(splineCamera.position, lookAt, normal);// следование вдоль сплайна
+                splineCamera.quaternion.setFromRotationMatrix(splineCamera.matrix);// вращение в направление сплайна
+
+                renderer.render(scene, params.animationView === true ? splineCamera : camera);
+            }
+
+        </script>
+    </body>
+</html>
